@@ -33,45 +33,51 @@
 
 extern bool gDoForwards;
 
+// Initialize local storage for (original) return result
+#define MAKE_RETDATA()	\
+	Data __saferet_data; \
+	Data __saferet_orig_data;
+
 // Return value pushes
-#define PUSH_VOID() ReturnStack.push(new Data(RET_VOID, NULL));				OrigReturnStack.push(new Data(RET_VOID, NULL));
-#define PUSH_BOOL() ReturnStack.push(new Data(RET_BOOL, (void *)&ret));		OrigReturnStack.push(new Data(RET_BOOL, (void *)&origret));
-#define PUSH_INT() ReturnStack.push(new Data(RET_INTEGER, (void *)&ret));	OrigReturnStack.push(new Data(RET_INTEGER, (void *)&origret));
-#define PUSH_FLOAT() ReturnStack.push(new Data(RET_FLOAT, (void *)&ret));	OrigReturnStack.push(new Data(RET_FLOAT, (void *)&origret));
-#define PUSH_VECTOR() ReturnStack.push(new Data(RET_VECTOR, (void *)&ret)); OrigReturnStack.push(new Data(RET_VECTOR, (void *)&origret));
-#define PUSH_CBASE() ReturnStack.push(new Data(RET_CBASE, (void *)&ret));	OrigReturnStack.push(new Data(RET_CBASE, (void *)&origret));
-#define PUSH_STRING() ReturnStack.push(new Data(RET_STRING, (void *)&ret)); OrigReturnStack.push(new Data(RET_STRING, (void *)&origret));
+#define RET_PUSH_VOID() __saferet_data.Init(RET_VOID, NULL); ReturnStack.push(&__saferet_data);					__saferet_orig_data.Init(RET_VOID, NULL); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_INT() __saferet_data.Init(RET_INTEGER, (void *)&ret); ReturnStack.push(&__saferet_data);		__saferet_orig_data.Init(RET_INTEGER, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_BOOL() __saferet_data.Init(RET_BOOL, (void *)&ret); ReturnStack.push(&__saferet_data);			__saferet_orig_data.Init(RET_BOOL, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_FLOAT() __saferet_data.Init(RET_FLOAT, (void *)&ret); ReturnStack.push(&__saferet_data);		__saferet_orig_data.Init(RET_FLOAT, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_VECTOR() __saferet_data.Init(RET_VECTOR, (void *)&ret); ReturnStack.push(&__saferet_data); 	__saferet_orig_data.Init(RET_VECTOR, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_CBASE() __saferet_data.Init(RET_CBASE, (void *)&ret); ReturnStack.push(&__saferet_data);		__saferet_orig_data.Init(RET_CBASE, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+#define RET_PUSH_STRING() __saferet_data.Init(RET_STRING, (void *)&ret); ReturnStack.push(&__saferet_data);		__saferet_orig_data.Init(RET_STRING, (void *)&origret); OrigReturnStack.push(&__saferet_orig_data);
+
 
 // Pop off return values
-#define POP() delete ReturnStack.front(); ReturnStack.pop(); delete OrigReturnStack.front(); OrigReturnStack.pop();
+#define RET_POP() ReturnStack.pop(); OrigReturnStack.pop();
 
 // Parameter value pushes
 #define MAKE_VECTOR()															\
 	int iThis=PrivateToIndex(pthis);											\
-	ke::Vector<Data *> *__vec=new ke::Vector<Data *>;							\
-	ParamStack.push(__vec);														\
+	CParamsStorage __params_vec;												\
+	ParamStack.push(&__params_vec);												\
+	Data __local_params_data[HAM_MAX_FORWARD_PARAMS];							\
+	Data* clData;																\
+	unsigned int __local_params_datanum = 0;									\
 	P_CBASE(pthis, iThis)
 
-#define P_BOOL(___PARAM)			__vec->append(new Data(RET_BOOL, (void *) & (___PARAM)));
-#define P_INT(___PARAM)				__vec->append(new Data(RET_INTEGER, (void *) & (___PARAM)));
-#define P_SHORT(___PARAM)			__vec->append(new Data(RET_SHORT, (void *) & (___PARAM)));
-#define P_FLOAT(___PARAM)			__vec->append(new Data(RET_FLOAT, (void *) & (___PARAM)));			
-#define P_VECTOR(___PARAM)			__vec->append(new Data(RET_VECTOR, (void *) & (___PARAM)));
-#define P_STR(___PARAM)				__vec->append(new Data(RET_STRING, (void *) & (___PARAM)));
-#define P_CBASE(__PARAM, __INDEX)	__vec->append(new Data(RET_CBASE, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))));
-#define P_ENTVAR(__PARAM, __INDEX)	__vec->append(new Data(RET_ENTVAR, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))));
-#define P_EDICT(__PARAM, __INDEX)	__vec->append(new Data(RET_EDICT, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))));
-#define P_TRACE(__PARAM)			__vec->append(new Data(RET_TRACE, (void *) (__PARAM)));
-#define P_PTRVECTOR(__PARAM)		__vec->append(new Data(RET_VECTOR, (void *) (__PARAM)));
-#define P_PTRFLOAT(__PARAM)			__vec->append(new Data(RET_FLOAT, (void *) (__PARAM)));
-#define P_ITEMINFO(__PARAM)			__vec->append(new Data(RET_ITEMINFO, (void *) & (__PARAM)));
+#define ALLOC_LOCAL_DATA()			clData = &__local_params_data[__local_params_datanum++]
+
+#define P_BOOL(___PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_BOOL, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_INT(___PARAM)				ALLOC_LOCAL_DATA(); clData->Init(RET_INTEGER, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_SHORT(___PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_SHORT, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_FLOAT(___PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_FLOAT, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_VECTOR(___PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_VECTOR, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_STR(___PARAM)				ALLOC_LOCAL_DATA(); clData->Init(RET_STRING, (void *) & (___PARAM)); __params_vec.push_back(clData);
+#define P_CBASE(__PARAM, __INDEX)	ALLOC_LOCAL_DATA(); clData->Init(RET_CBASE, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))); __params_vec.push_back(clData);
+#define P_ENTVAR(__PARAM, __INDEX)	ALLOC_LOCAL_DATA(); clData->Init(RET_ENTVAR, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))); __params_vec.push_back(clData);
+#define P_EDICT(__PARAM, __INDEX)	ALLOC_LOCAL_DATA(); clData->Init(RET_EDICT, (void *) & (__PARAM), reinterpret_cast<int *>(& (__INDEX))); __params_vec.push_back(clData);
+#define P_TRACE(__PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_TRACE, (void *) (__PARAM)); __params_vec.push_back(clData);
+#define P_PTRVECTOR(__PARAM)		ALLOC_LOCAL_DATA(); clData->Init(RET_VECTOR, (void *) (__PARAM)); __params_vec.push_back(clData);
+#define P_PTRFLOAT(__PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_FLOAT, (void *) (__PARAM)); __params_vec.push_back(clData);
+#define P_ITEMINFO(__PARAM)			ALLOC_LOCAL_DATA(); clData->Init(RET_ITEMINFO, (void *) & (__PARAM)); __params_vec.push_back(clData);
 
 #define KILL_VECTOR()															\
-	for (size_t i = 0; i < __vec->length(); ++i)									\
-	{																			\
-		delete __vec->at(i);														\
-	}																			\
-	delete __vec;																\
 	ParamStack.pop();
 
 #define PRE_START()																\
@@ -141,7 +147,8 @@ extern bool gDoForwards;
 
 void Hook_Void_Void(Hook *hook, void *pthis)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	
@@ -158,7 +165,7 @@ void Hook_Void_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Void(Hook *hook, void *pthis)
@@ -166,7 +173,8 @@ int Hook_Int_Void(Hook *hook, void *pthis)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -184,7 +192,7 @@ int Hook_Int_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -192,7 +200,8 @@ int Hook_Int_Void(Hook *hook, void *pthis)
 
 void Hook_Void_Entvar(Hook *hook, void *pthis, entvars_t *entvar)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	int iOther=EntvarToIndex(entvar);
 
@@ -215,13 +224,14 @@ void Hook_Void_Entvar(Hook *hook, void *pthis, entvars_t *entvar)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 }
 
 void Hook_Void_Cbase(Hook *hook, void *pthis, void *other)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iOther=PrivateToIndex(other);
 
 	MAKE_VECTOR()
@@ -243,14 +253,16 @@ void Hook_Void_Cbase(Hook *hook, void *pthis, void *other)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Float_Int(Hook *hook, void *pthis, float f1, int i1)
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 	
@@ -272,7 +284,7 @@ int Hook_Int_Float_Int(Hook *hook, void *pthis, float f1, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -281,7 +293,9 @@ int Hook_Int_Float_Int_Int(Hook *hook, void *pthis, float f1, int i1, int i2)
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -304,14 +318,15 @@ int Hook_Int_Float_Int_Int(Hook *hook, void *pthis, float f1, int i1, int i2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Entvar_Int(Hook *hook, void *pthis, entvars_t *ev1, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iOther=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -334,24 +349,25 @@ void Hook_Void_Entvar_Int(Hook *hook, void *pthis, entvars_t *ev1, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Entvar_Entvar_Int(Hook *hook, void *pthis, entvars_t *ev1, entvars_t *ev2, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 		int iInflictor=EntvarToIndex(ev1);
 		int iAttacker=EntvarToIndex(ev2);
 
 	MAKE_VECTOR()
 
-		P_ENTVAR(ev1, iInflictor)
-		P_ENTVAR(ev2, iAttacker)
-		P_INT(i1)
+	P_ENTVAR(ev1, iInflictor)
+	P_ENTVAR(ev2, iAttacker)
+	P_INT(i1)
 
-		PRE_START()
+	PRE_START()
 		, iInflictor, iAttacker, i1
-		PRE_END()
+	PRE_END()
 
 #if defined(_WIN32)
 	reinterpret_cast<void (__fastcall*)(void*, int, entvars_t *, entvars_t *, int)>(hook->func)(pthis, 0, ev1, ev2, i1);
@@ -361,10 +377,10 @@ void Hook_Void_Entvar_Entvar_Int(Hook *hook, void *pthis, entvars_t *ev1, entvar
 
 	POST_START()
 		, iInflictor, iAttacker, i1
-		POST_END()
+	POST_END()
 
-		KILL_VECTOR()
-		POP()
+	KILL_VECTOR()
+	RET_POP()
 }
 
 int Hook_Int_Cbase(Hook *hook, void *pthis, void *cb1)
@@ -372,7 +388,8 @@ int Hook_Int_Cbase(Hook *hook, void *pthis, void *cb1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int iOther=PrivateToIndex(cb1);
 
@@ -394,14 +411,15 @@ int Hook_Int_Cbase(Hook *hook, void *pthis, void *cb1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Int_Int(Hook *hook, void *pthis, int i1, int i2)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	
@@ -422,7 +440,7 @@ void Hook_Void_Int_Int(Hook *hook, void *pthis, int i1, int i2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Int_Str_Int(Hook *hook, void *pthis, int i1, const char *sz1, int i2)
@@ -431,7 +449,8 @@ int Hook_Int_Int_Str_Int(Hook *hook, void *pthis, int i1, const char *sz1, int i
 	int origret=0;
 	ke::AString a;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	a = sz1;
 
@@ -455,7 +474,7 @@ int Hook_Int_Int_Str_Int(Hook *hook, void *pthis, int i1, const char *sz1, int i
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -466,7 +485,8 @@ int Hook_Int_Int_Str_Int_Int(Hook *hook, void *pthis, int i1, const char *sz1, i
 	int origret = 0;
 	ke::AString a;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	a = sz1;
 
@@ -491,7 +511,7 @@ int Hook_Int_Int_Str_Int_Int(Hook *hook, void *pthis, int i1, const char *sz1, i
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -500,8 +520,9 @@ int Hook_Int_Int(Hook *hook, void *pthis, int i1)
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
 
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 	
@@ -522,7 +543,7 @@ int Hook_Int_Int(Hook *hook, void *pthis, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -532,7 +553,8 @@ int Hook_Int_Entvar(Hook *hook, void *pthis, entvars_t *ev1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 	int iOther=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -553,7 +575,7 @@ int Hook_Int_Entvar(Hook *hook, void *pthis, entvars_t *ev1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -562,7 +584,9 @@ int Hook_Int_Entvar_Entvar_Float_Int(Hook *hook, void *pthis, entvars_t *inflict
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 	int iInflictor=EntvarToIndex(inflictor);
 	int iAttacker=EntvarToIndex(attacker);
 	
@@ -588,7 +612,7 @@ int Hook_Int_Entvar_Entvar_Float_Int(Hook *hook, void *pthis, entvars_t *inflict
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -596,7 +620,9 @@ int Hook_Int_Entvar_Entvar_Float_Float_Int(Hook *hook, void *pthis, entvars_t *i
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 	int iInflictor=EntvarToIndex(inflictor);
 	int iAttacker=EntvarToIndex(attacker);
 	
@@ -623,14 +649,15 @@ int Hook_Int_Entvar_Entvar_Float_Float_Int(Hook *hook, void *pthis, entvars_t *i
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Int(Hook *hook, void *pthis, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_INT(i1)
@@ -650,14 +677,16 @@ void Hook_Void_Int(Hook *hook, void *pthis, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 float Hook_Float_Int(Hook *hook, void *pthis, int i1)
 {
 	float ret=0.0;
 	float origret=0.0;
-	PUSH_FLOAT()
+
+	MAKE_RETDATA()
+	RET_PUSH_FLOAT()
 
 	MAKE_VECTOR()
 	P_INT(i1)
@@ -676,7 +705,7 @@ float Hook_Float_Int(Hook *hook, void *pthis, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -691,7 +720,8 @@ void Hook_Vector_Float_Cbase_Int(Hook *hook, Vector *out, void *pthis, float f1,
 	Vector ret;
 	Vector origret;
 
-	PUSH_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_VECTOR()
 
 	MAKE_VECTOR()
 
@@ -719,7 +749,7 @@ void Hook_Vector_Float_Cbase_Int(Hook *hook, Vector *out, void *pthis, float f1,
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN_VEC()
 	memcpy(out, &ret, sizeof(Vector));
@@ -727,7 +757,8 @@ void Hook_Vector_Float_Cbase_Int(Hook *hook, Vector *out, void *pthis, float f1,
 
 void Hook_Void_Cbase_Cbase_Int_Float(Hook *hook, void *pthis, void *cb1, void *cb2, int i1, float f1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iCaller=PrivateToIndex(cb1);
 	int iActivator=PrivateToIndex(cb2);
 	
@@ -753,12 +784,13 @@ void Hook_Void_Cbase_Cbase_Int_Float(Hook *hook, void *pthis, void *cb1, void *c
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Entvar_Float_Vector_Trace_Int(Hook *hook, void *pthis, entvars_t *ev1, float f1, Vector v1, TraceResult *tr1, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iev1=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -783,12 +815,13 @@ void Hook_Void_Entvar_Float_Vector_Trace_Int(Hook *hook, void *pthis, entvars_t 
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Float_Vector_Trace_Int(Hook *hook, void *pthis, float f1, Vector v1, TraceResult *tr1, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -811,7 +844,7 @@ void Hook_Void_Float_Vector_Trace_Int(Hook *hook, void *pthis, float f1, Vector 
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 const char *Hook_Str_Void(Hook *hook, void *pthis)
@@ -819,9 +852,10 @@ const char *Hook_Str_Void(Hook *hook, void *pthis)
 	ke::AString ret;
 	ke::AString origret;
 
+	MAKE_RETDATA()
 	MAKE_VECTOR()
 
-	PUSH_STRING()
+	RET_PUSH_STRING()
 	PRE_START()
 	PRE_END()
 
@@ -835,7 +869,7 @@ const char *Hook_Str_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_STR();
 
 	return ret.chars();
@@ -845,7 +879,9 @@ void *Hook_Cbase_Void(Hook *hook, void *pthis)
 {
 	void *ret=NULL;
 	void *origret=NULL;
-	PUSH_CBASE()
+
+	MAKE_RETDATA()
+	RET_PUSH_CBASE()
 
 	MAKE_VECTOR()
 
@@ -862,7 +898,7 @@ void *Hook_Cbase_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 
@@ -877,7 +913,8 @@ void Hook_Vector_Void(Hook *hook, Vector *out, void *pthis)
 	Vector ret;
 	Vector origret;
 
-	PUSH_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_VECTOR()
 
 	MAKE_VECTOR()
 
@@ -897,7 +934,7 @@ void Hook_Vector_Void(Hook *hook, Vector *out, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_VEC()
 	memcpy(out, &ret, sizeof(Vector));
 
@@ -912,7 +949,8 @@ void Hook_Vector_pVector(Hook *hook, Vector *out, void *pthis, Vector *v1)
 	Vector ret;
 	Vector origret;
 
-	PUSH_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_VECTOR()
 
 	MAKE_VECTOR()
 	P_PTRVECTOR(v1)
@@ -935,7 +973,7 @@ void Hook_Vector_pVector(Hook *hook, Vector *out, void *pthis, Vector *v1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_VEC()
 	memcpy(out, &ret, sizeof(Vector));
 }
@@ -944,7 +982,9 @@ int Hook_Int_pVector(Hook *hook, void *pthis, Vector *v1)
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 	P_PTRVECTOR(v1)
@@ -964,14 +1004,15 @@ int Hook_Int_pVector(Hook *hook, void *pthis, Vector *v1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Entvar_Float_Float(Hook *hook, void *pthis, entvars_t *ev1, float f1, float f2)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	cell cev1=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -994,12 +1035,13 @@ void Hook_Void_Entvar_Float_Float(Hook *hook, void *pthis, entvars_t *ev1, float
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_pFloat_pFloat(Hook *hook, void *pthis, float *f1, float *f2)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_PTRFLOAT(f1)
@@ -1020,12 +1062,13 @@ void Hook_Void_pFloat_pFloat(Hook *hook, void *pthis, float *f1, float *f2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Entvar_Float(Hook *hook, void *pthis, entvars_t *ev1, float f1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	cell cev1=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -1047,12 +1090,13 @@ void Hook_Void_Entvar_Float(Hook *hook, void *pthis, entvars_t *ev1, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Int_Int_Int(Hook *hook, void *pthis, int i1, int i2, int i3)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	
@@ -1074,11 +1118,12 @@ void Hook_Void_Int_Int_Int(Hook *hook, void *pthis, int i1, int i2, int i3)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 void Hook_Void_ItemInfo(Hook *hook, void *pthis, void *iteminfo)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	
@@ -1098,14 +1143,16 @@ void Hook_Void_ItemInfo(Hook *hook, void *pthis, void *iteminfo)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 float Hook_Float_Void(Hook *hook, void *pthis)
 {
 	float ret=0.0;
 	float origret=0.0;
-	PUSH_FLOAT()
+
+	MAKE_RETDATA()
+	RET_PUSH_FLOAT()
 
 	MAKE_VECTOR()
 	
@@ -1121,14 +1168,15 @@ float Hook_Float_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
 }
 void Hook_Void_Float_Int(Hook* hook, void* pthis, float f1, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -1148,7 +1196,7 @@ void Hook_Void_Float_Int(Hook* hook, void* pthis, float f1, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 float Hook_Float_Float_Cbase(Hook* hook, void* pthis, float f1, void *cb1)
@@ -1156,7 +1204,8 @@ float Hook_Float_Float_Cbase(Hook* hook, void* pthis, float f1, void *cb1)
 	float ret = 0.0;
 	float origret = 0.0;
 
-	PUSH_FLOAT()
+	MAKE_RETDATA()
+	RET_PUSH_FLOAT()
 
 	MAKE_VECTOR()
 
@@ -1179,7 +1228,7 @@ float Hook_Float_Float_Cbase(Hook* hook, void* pthis, float f1, void *cb1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -1187,7 +1236,8 @@ float Hook_Float_Float_Cbase(Hook* hook, void* pthis, float f1, void *cb1)
 
 void Hook_Void_Float(Hook* hook, void* pthis, float f1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -1206,22 +1256,23 @@ void Hook_Void_Float(Hook* hook, void* pthis, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Float_Float_Float_Int(Hook* hook, void* pthis, float f1, float f2, float f3, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
-		MAKE_VECTOR()
-		P_FLOAT(f1)
-		P_FLOAT(f2)
-		P_FLOAT(f3)
-		P_INT(i1)
+	MAKE_VECTOR()
+	P_FLOAT(f1)
+	P_FLOAT(f2)
+	P_FLOAT(f3)
+	P_INT(i1)
 
-		PRE_START()
+	PRE_START()
 		, f1, f2, f3, i1
-		PRE_END()
+	PRE_END()
 #if defined(_WIN32)
 		reinterpret_cast<void (__fastcall*)(void*, int, float, float, float, int)>(hook->func)(pthis, 0, f1, f2, f3, i1);
 #elif defined(__linux__) || defined(__APPLE__)
@@ -1233,7 +1284,7 @@ void Hook_Void_Float_Float_Float_Int(Hook* hook, void* pthis, float f1, float f2
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 #ifdef _WIN32
@@ -1245,7 +1296,8 @@ void Hook_Vector_Float(Hook *hook, Vector *out, void *pthis, float f1)
 	Vector ret;
 	Vector origret;
 
-	PUSH_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_VECTOR()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -1268,7 +1320,7 @@ void Hook_Vector_Float(Hook *hook, Vector *out, void *pthis, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_VEC()
 	memcpy(out, &ret, sizeof(Vector));
 
@@ -1276,7 +1328,8 @@ void Hook_Vector_Float(Hook *hook, Vector *out, void *pthis, float f1)
 
 void Hook_Void_Float_Cbase(Hook *hook, void *pthis, float f1, void *cb)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iEnt =PrivateToIndex(cb);
 
 	MAKE_VECTOR()
@@ -1299,7 +1352,7 @@ void Hook_Void_Float_Cbase(Hook *hook, void *pthis, float f1, void *cb)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Float_Float(Hook *hook, void *pthis, float f1, float f2)
@@ -1307,7 +1360,8 @@ int Hook_Int_Float_Float(Hook *hook, void *pthis, float f1, float f2)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1329,7 +1383,7 @@ int Hook_Int_Float_Float(Hook *hook, void *pthis, float f1, float f2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -1340,7 +1394,8 @@ int Hook_Int_Float(Hook *hook, void *pthis, float f1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1361,7 +1416,7 @@ int Hook_Int_Float(Hook *hook, void *pthis, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -1372,7 +1427,8 @@ int Hook_Int_Int_Int(Hook *hook, void *pthis, int i1, int i2)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1394,7 +1450,7 @@ int Hook_Int_Int_Int(Hook *hook, void *pthis, int i1, int i2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -1404,7 +1460,8 @@ void Hook_Void_Str_Float_Float_Float(Hook *hook, void *pthis, const char *sz1, f
 {
 	ke::AString a;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	
 	a = sz1;
 
@@ -1430,14 +1487,15 @@ void Hook_Void_Str_Float_Float_Float(Hook *hook, void *pthis, const char *sz1, f
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Str_Float_Float_Float_Int_Cbase(Hook *hook, void *pthis, const char *sz1, float f1, float f2, float f3, int i1, void *cb)
 {
 	ke::AString a;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	a = sz1;
 	int iEnt=PrivateToIndex(cb);
@@ -1466,7 +1524,7 @@ void Hook_Void_Str_Float_Float_Float_Int_Cbase(Hook *hook, void *pthis, const ch
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Vector_Vector_Float_Float(Hook *hook, void *pthis, Vector v1, Vector v2, float f1, float f2)
@@ -1474,7 +1532,8 @@ int Hook_Int_Vector_Vector_Float_Float(Hook *hook, void *pthis, Vector v1, Vecto
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1502,7 +1561,7 @@ int Hook_Int_Vector_Vector_Float_Float(Hook *hook, void *pthis, Vector v1, Vecto
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -1513,7 +1572,8 @@ int Hook_Int_Short(Hook *hook, void *pthis, short s1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1534,7 +1594,7 @@ int Hook_Int_Short(Hook *hook, void *pthis, short s1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -1542,7 +1602,8 @@ int Hook_Int_Short(Hook *hook, void *pthis, short s1)
 
 void Hook_Void_Entvar_Entvar_Float_Int_Int(Hook *hook, void *pthis, entvars_t *inflictor, entvars_t *attacker, float damage, int classignore, int damagebits)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	int iInflictor=EntvarToIndex(inflictor);
 	int iAttacker=EntvarToIndex(attacker);
@@ -1571,12 +1632,13 @@ void Hook_Void_Entvar_Entvar_Float_Int_Int(Hook *hook, void *pthis, entvars_t *i
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Vector_Entvar_Entvar_Float_Int_Int(Hook *hook, void *pthis, Vector source, entvars_t *inflictor, entvars_t *attacker, float damage, int classignore, int damagebits)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	int iInflictor=EntvarToIndex(inflictor);
 	int iAttacker=EntvarToIndex(attacker);
@@ -1608,7 +1670,7 @@ void Hook_Void_Vector_Entvar_Entvar_Float_Int_Int(Hook *hook, void *pthis, Vecto
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 float Hook_Float_Int_Float(Hook *hook, void *pthis, int i1, float f2)
@@ -1616,7 +1678,8 @@ float Hook_Float_Int_Float(Hook *hook, void *pthis, int i1, float f2)
 	float ret=0.0;
 	float origret=0.0;
 
-	PUSH_FLOAT()
+	MAKE_RETDATA()
+	RET_PUSH_FLOAT()
 
 	MAKE_VECTOR()
 
@@ -1638,7 +1701,7 @@ float Hook_Float_Int_Float(Hook *hook, void *pthis, int i1, float f2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -1650,7 +1713,8 @@ int Hook_Int_Str(Hook *hook, void *pthis, const char *sz1)
 	int origret=0;
 	ke::AString a;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 	
 	a = sz1;
 
@@ -1672,7 +1736,7 @@ int Hook_Int_Str(Hook *hook, void *pthis, const char *sz1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -1680,7 +1744,8 @@ int Hook_Int_Str(Hook *hook, void *pthis, const char *sz1)
 
 void Hook_Void_Edict(Hook *hook, void *pthis, edict_t *ed1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	int id1=EdictToIndex(ed1);
 
@@ -1702,12 +1767,13 @@ void Hook_Void_Edict(Hook *hook, void *pthis, edict_t *ed1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Int_Str_Bool(Hook *hook, void *pthis, int i1, const char *sz2, bool b3)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	//String a=sz2;
 
 	MAKE_VECTOR()
@@ -1731,12 +1797,13 @@ void Hook_Void_Int_Str_Bool(Hook *hook, void *pthis, int i1, const char *sz2, bo
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Vector_Vector(Hook *hook, void *pthis, Vector v1, Vector v2)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 
@@ -1760,14 +1827,15 @@ void Hook_Void_Vector_Vector(Hook *hook, void *pthis, Vector v1, Vector v2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Str_Bool(Hook *hook, void *pthis, const char *sz1, bool b2)
 {
 	ke::AString a;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	
 	a = sz1;
 
@@ -1791,7 +1859,7 @@ void Hook_Void_Str_Bool(Hook *hook, void *pthis, const char *sz1, bool b2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Str_Str_Int_Str_Int_Int(Hook *hook, void *pthis, const char *sz1, const char *sz2, int i1, const char *sz3, int i2, int i3)
@@ -1799,7 +1867,8 @@ int Hook_Int_Str_Str_Int_Str_Int_Int(Hook *hook, void *pthis, const char *sz1, c
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1825,7 +1894,7 @@ int Hook_Int_Str_Str_Int_Str_Int_Int(Hook *hook, void *pthis, const char *sz1, c
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -1836,7 +1905,8 @@ int Hook_Int_Int_Int_Float_Int(Hook *hook, void *pthis, int i1, int i2, float f1
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -1860,7 +1930,7 @@ int Hook_Int_Int_Int_Float_Int(Hook *hook, void *pthis, int i1, int i2, float f1
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -1870,7 +1940,8 @@ void Hook_Void_Str_Int(Hook *hook, void *pthis, const char *sz1, int i2)
 {
 	ke::AString a;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	
 	a = sz1;
 
@@ -1894,12 +1965,13 @@ void Hook_Void_Str_Int(Hook *hook, void *pthis, const char *sz1, int i2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Cbase_Int(Hook *hook, void *pthis, void *p1, int i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iEnt =PrivateToIndex(p1);
 
 	MAKE_VECTOR()
@@ -1922,14 +1994,15 @@ void Hook_Void_Cbase_Int(Hook *hook, void *pthis, void *p1, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Str(Hook *hook, void *pthis, const char *sz1)
 {
 	ke::AString a;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	
 	a = sz1;
 
@@ -1952,12 +2025,13 @@ void Hook_Void_Str(Hook *hook, void *pthis, const char *sz1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Vector(Hook *hook, void *pthis, Vector v1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_VECTOR(v1)
@@ -1977,7 +2051,7 @@ void Hook_Void_Vector(Hook *hook, void *pthis, Vector v1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_Str_Vector_Str(Hook *hook, void *pthis, const char *sz1, Vector v2, const char *sz2)
@@ -1987,7 +2061,8 @@ int Hook_Int_Str_Vector_Str(Hook *hook, void *pthis, const char *sz1, Vector v2,
 	ke::AString a;
 	ke::AString b;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	a = sz1;
 	b = sz2;
@@ -2013,7 +2088,7 @@ int Hook_Int_Str_Vector_Str(Hook *hook, void *pthis, const char *sz1, Vector v2,
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2026,7 +2101,8 @@ int Hook_Int_Str_Str(Hook *hook, void *pthis, const char *sz1, const char *sz2)
 	ke::AString a;
 	ke::AString b;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	a = sz1;
 	b = sz2;
@@ -2051,7 +2127,7 @@ int Hook_Int_Str_Str(Hook *hook, void *pthis, const char *sz1, const char *sz2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2059,7 +2135,8 @@ int Hook_Int_Str_Str(Hook *hook, void *pthis, const char *sz1, const char *sz2)
 
 void Hook_Void_Float_Float(Hook *hook, void *pthis, float f1, float f2)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -2080,7 +2157,7 @@ void Hook_Void_Float_Float(Hook *hook, void *pthis, float f1, float f2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 void Hook_Void_Str_Str_Int(Hook *hook, void *pthis, const char *sz1, const char *sz2, int i3)
@@ -2088,7 +2165,8 @@ void Hook_Void_Str_Str_Int(Hook *hook, void *pthis, const char *sz1, const char 
 	ke::AString a;
 	ke::AString b;
 
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	a = sz1;
 	b = sz2;
@@ -2114,7 +2192,7 @@ void Hook_Void_Str_Str_Int(Hook *hook, void *pthis, const char *sz1, const char 
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_pVector_pVector_Cbase_pFloat(Hook *hook, void *pthis, Vector *v1, Vector *v2, void* cb, float* fl)
@@ -2122,7 +2200,8 @@ int Hook_Int_pVector_pVector_Cbase_pFloat(Hook *hook, void *pthis, Vector *v1, V
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int i3=PrivateToIndex(cb);
 
@@ -2153,14 +2232,15 @@ int Hook_Int_pVector_pVector_Cbase_pFloat(Hook *hook, void *pthis, Vector *v1, V
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Cbase_pVector_Float(Hook *hook, void *pthis, void *p1, Vector *v1, float fl)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iEnt =PrivateToIndex(p1);
 
 	MAKE_VECTOR()
@@ -2184,7 +2264,7 @@ void Hook_Void_Cbase_pVector_Float(Hook *hook, void *pthis, void *p1, Vector *v1
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 int Hook_Int_pVector_pVector_Float_Cbase_pVector(Hook *hook, void *pthis, Vector *v1, Vector *v2, float fl, void* cb, Vector *v3)
@@ -2192,7 +2272,8 @@ int Hook_Int_pVector_pVector_Float_Cbase_pVector(Hook *hook, void *pthis, Vector
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int i4=PrivateToIndex(cb);
 
@@ -2226,7 +2307,7 @@ int Hook_Int_pVector_pVector_Float_Cbase_pVector(Hook *hook, void *pthis, Vector
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -2236,7 +2317,8 @@ int Hook_Int_Cbase_Bool(Hook *hook, void *pthis, void *cb1, bool b1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 		int i1=PrivateToIndex(cb1);
 
@@ -2259,7 +2341,7 @@ int Hook_Int_Cbase_Bool(Hook *hook, void *pthis, void *cb1, bool b1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -2269,7 +2351,8 @@ int Hook_Int_Vector_Vector(Hook *hook, void *pthis, Vector v1, Vector v2)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -2293,7 +2376,7 @@ int Hook_Int_Vector_Vector(Hook *hook, void *pthis, Vector v1, Vector v2)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -2304,7 +2387,8 @@ int Hook_Int_Entvar_Float(Hook *hook, void *pthis, entvars_t *ev1, float f1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 	int i1=EntvarToIndex(ev1);
 
 	MAKE_VECTOR()
@@ -2326,7 +2410,7 @@ int Hook_Int_Entvar_Float(Hook *hook, void *pthis, entvars_t *ev1, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -2336,7 +2420,8 @@ float Hook_Float_Float(Hook *hook, void *pthis, float f1)
 	float ret=0.0;
 	float origret=0.0;
 
-	PUSH_FLOAT()
+	MAKE_RETDATA()
+	RET_PUSH_FLOAT()
 
 	MAKE_VECTOR()
 	P_FLOAT(f1)
@@ -2355,7 +2440,7 @@ float Hook_Float_Float(Hook *hook, void *pthis, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2363,7 +2448,8 @@ float Hook_Float_Float(Hook *hook, void *pthis, float f1)
 
 void Hook_Void_Entvar_Entvar_Float(Hook *hook, void *pthis, entvars_t *attacker, entvars_t *inflictor, float damage)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	int iAttacker=EntvarToIndex(attacker);
 	int iInflictor=EntvarToIndex(inflictor);
@@ -2390,7 +2476,7 @@ void Hook_Void_Entvar_Entvar_Float(Hook *hook, void *pthis, entvars_t *attacker,
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 bool Hook_Bool_Void(Hook *hook, void *pthis)
@@ -2398,7 +2484,8 @@ bool Hook_Bool_Void(Hook *hook, void *pthis)
 	bool ret=0;
 	bool origret=0;
 
-	PUSH_BOOL()
+	MAKE_RETDATA()
+	RET_PUSH_BOOL()
 
 	MAKE_VECTOR()
 
@@ -2415,7 +2502,7 @@ bool Hook_Bool_Void(Hook *hook, void *pthis)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2426,7 +2513,8 @@ int Hook_Int_pVector_pVector_Float_Cbase_pVector_pVector_Bool(Hook *hook, void *
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int i4=PrivateToIndex(cb);
 
@@ -2467,7 +2555,7 @@ int Hook_Int_pVector_pVector_Float_Cbase_pVector_pVector_Bool(Hook *hook, void *
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -2476,7 +2564,9 @@ int Hook_Int_Vector_Cbase(Hook *hook, void *pthis, Vector v1, void* cb)
 {
 	int ret=0;
 	int origret=0;
-	PUSH_INT()
+
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int i4=PrivateToIndex(cb);
 
@@ -2502,7 +2592,7 @@ int Hook_Int_Vector_Cbase(Hook *hook, void *pthis, Vector v1, void* cb)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
@@ -2512,7 +2602,8 @@ int Hook_Int_Vector(Hook *hook, void *pthis, Vector v1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	MAKE_VECTOR()
 
@@ -2533,7 +2624,7 @@ int Hook_Int_Vector(Hook *hook, void *pthis, Vector v1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 
 	return ret;
@@ -2544,7 +2635,8 @@ int Hook_Int_Cbase_pVector(Hook *hook, void *pthis, void *cb1, Vector *v1)
 	int ret=0;
 	int origret=0;
 
-	PUSH_INT()
+	MAKE_RETDATA()
+	RET_PUSH_INT()
 
 	int iOther=PrivateToIndex(cb1);
 
@@ -2569,14 +2661,15 @@ int Hook_Int_Cbase_pVector(Hook *hook, void *pthis, void *cb1, Vector *v1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN()
 	return ret;
 }
 
 void Hook_Void_Bool(Hook *hook, void *pthis, bool b1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_BOOL(b1)
@@ -2596,7 +2689,7 @@ void Hook_Void_Bool(Hook *hook, void *pthis, bool b1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 bool Hook_Bool_Cbase(Hook *hook, void *pthis, void *cb)
@@ -2604,7 +2697,8 @@ bool Hook_Bool_Cbase(Hook *hook, void *pthis, void *cb)
 	bool ret=0;
 	bool origret=0;
 
-	PUSH_BOOL()
+	MAKE_RETDATA()
+	RET_PUSH_BOOL()
 
 	int iOther=PrivateToIndex(cb);
 
@@ -2627,7 +2721,7 @@ bool Hook_Bool_Cbase(Hook *hook, void *pthis, void *cb)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2638,7 +2732,8 @@ bool Hook_Bool_Int(Hook *hook, void *pthis, int i1)
 	bool ret=0;
 	bool origret=0;
 
-	PUSH_BOOL()
+	MAKE_RETDATA()
+	RET_PUSH_BOOL()
 
 	MAKE_VECTOR()
 
@@ -2659,7 +2754,7 @@ bool Hook_Bool_Int(Hook *hook, void *pthis, int i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 
 	CHECK_RETURN()
 	return ret;
@@ -2668,7 +2763,8 @@ bool Hook_Bool_Int(Hook *hook, void *pthis, int i1)
 
 void Hook_Void_Cbase_Float(Hook *hook, void *pthis, void *p1, float f1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 		int iEnt =PrivateToIndex(p1);
 
 	MAKE_VECTOR()
@@ -2691,13 +2787,14 @@ void Hook_Void_Cbase_Float(Hook *hook, void *pthis, void *p1, float f1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 
 void Hook_Void_Cbase_Bool(Hook *hook, void *pthis, void *p1, bool b1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 	int iEnt =PrivateToIndex(p1);
 
 	MAKE_VECTOR()
@@ -2720,7 +2817,7 @@ void Hook_Void_Cbase_Bool(Hook *hook, void *pthis, void *p1, bool b1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 #ifdef _WIN32
@@ -2732,7 +2829,8 @@ void Hook_Vector_Vector_Vector_Vector(Hook *hook, Vector *out, void *pthis, Vect
 	Vector ret;
 	Vector origret;
 
-	PUSH_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_VECTOR()
 
 	MAKE_VECTOR()
 
@@ -2762,7 +2860,7 @@ void Hook_Vector_Vector_Vector_Vector(Hook *hook, Vector *out, void *pthis, Vect
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_VEC()
 
 	memcpy(out, &ret, sizeof(Vector));
@@ -2776,9 +2874,10 @@ const char *Hook_Str_Str(Hook *hook, void *pthis, const char* str)
 	
 	a = str;
 
-	MAKE_VECTOR()
+	MAKE_RETDATA()
+	RET_PUSH_STRING()
 
-	PUSH_STRING()
+	MAKE_VECTOR()
 
 	P_STR(a)
 
@@ -2797,7 +2896,7 @@ const char *Hook_Str_Str(Hook *hook, void *pthis, const char* str)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 	CHECK_RETURN_STR();
 
 	return ret.chars();
@@ -2805,7 +2904,8 @@ const char *Hook_Str_Str(Hook *hook, void *pthis, const char* str)
 
 void Hook_Void_Short(Hook *hook, void *pthis, short i1)
 {
-	PUSH_VOID()
+	MAKE_RETDATA()
+	RET_PUSH_VOID()
 
 	MAKE_VECTOR()
 	P_SHORT(i1)
@@ -2825,7 +2925,7 @@ void Hook_Void_Short(Hook *hook, void *pthis, short i1)
 	POST_END()
 
 	KILL_VECTOR()
-	POP()
+	RET_POP()
 }
 
 
