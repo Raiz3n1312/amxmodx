@@ -66,6 +66,7 @@
   #include <windows.h>
 #endif
 
+#include "amxmodx.h"
 
 /* When one or more of the AMX_funcname macris are defined, we want
  * to compile only those functions. However, when none of these macros
@@ -1599,6 +1600,11 @@ int AMXAPI amx_PushString(AMX *amx, cell *amx_addr, cell **phys_addr, const char
   assert(amx!=NULL);
   assert(amx_addr!=NULL);
   assert(string!=NULL);
+
+  if (string == NULL) {
+	  LogError(amx, AMX_ERR_NATIVE, "bad string provided");
+	  return 0;
+  }
 
   #if defined AMX_ANSIONLY
     numcells=strlen(string) + 1;

@@ -700,7 +700,7 @@ SIMPLE_VOID_HOOK_EDICT(ClientPutInServer);
 SIMPLE_VOID_HOOK_EDICT(ClientKill);
 
 // pfnClientCommand
-SIMPLE_VOID_HOOK_EDICT(ClientCommand);
+SIMPLE_VOID_HOOK_EDICT_PVCHECK(ClientCommand);
 
 // pfnServerDeactivate
 SIMPLE_VOID_HOOK_VOID(ServerDeactivate);

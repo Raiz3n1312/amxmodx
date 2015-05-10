@@ -424,6 +424,12 @@ static cell _message_begin(AMX *amx, cell *params, bool useFloat) /* 4 param */
 			return 0;
 		}
 
+		if (FNullEnt(INDEXENT(params[4])))
+		{
+			LogError(amx, AMX_ERR_NATIVE, "MSG_ONE_ or MSG_ONE_UNRELIABLE with no target entity. ID %d", params[4]);
+			return 0;
+		}
+
 		MESSAGE_BEGIN(params[1], params[2], NULL, INDEXENT(params[4]));
 		break;
 	}
@@ -769,6 +775,12 @@ static cell _emessage_begin(AMX *amx, cell *params, bool useFloat)
 		if (numparam < 4)
 		{
 			LogError(amx, AMX_ERR_NATIVE, "Invalid number of parameters passed");
+			return 0;
+		}
+
+		if (FNullEnt(INDEXENT(params[4])))
+		{
+			LogError(amx, AMX_ERR_NATIVE, "MSG_ONE or MSG_ONE_UNRELIABLE with no target entity");
 			return 0;
 		}
 

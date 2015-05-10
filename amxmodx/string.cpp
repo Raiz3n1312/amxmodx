@@ -92,6 +92,12 @@ int set_amxstring(AMX *amx, cell amx_addr, const char *source, int max)
 			g_BinLog.WriteOp(BinLog_SetString, pl->getId(), amx_addr, max, source);
 	}
 #endif
+
+	if (source == NULL)
+	{
+		LogError(amx, AMX_ERR_NATIVE, "bad string provided");
+		return 0;
+	}
 	
 	while (max-- && *source)
 		*dest++ = (unsigned char)*source++;

@@ -409,6 +409,21 @@
 		FM_ENG_HANDLE_POST(FM_##call, (EnginePost[FM_##call].at(i),  (cell)ENTINDEX(ent))); \
 		RETURN_META(MRES_IGNORED); \
 	} 
+
+#define SIMPLE_VOID_HOOK_EDICT_PVCHECK(call) \
+	void call (edict_t *ent) \
+	{ \
+		if (!ent->pvPrivateData) RETURN_META(MRES_IGNORED); \
+		FM_ENG_HANDLE(FM_##call, (Engine[FM_##call].at(i),  (cell)ENTINDEX(ent))); \
+		RETURN_META(mswi(lastFmRes)); \
+	} \
+	void call##_post (edict_t *ent) \
+	{ \
+		if (!ent->pvPrivateData) RETURN_META(MRES_IGNORED); \
+		FM_ENG_HANDLE_POST(FM_##call, (EnginePost[FM_##call].at(i),  (cell)ENTINDEX(ent))); \
+		RETURN_META(MRES_IGNORED); \
+	} 
+
 #define SIMPLE_EDICT_HOOK_VOID(call) \
 	edict_t* call () \
 	{ \
