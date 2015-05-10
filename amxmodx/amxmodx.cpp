@@ -717,6 +717,11 @@ static cell AMX_NATIVE_CALL is_user_connected(AMX *amx, cell *params) /* 1 param
 	
 	if (index < 1 || index > gpGlobals->maxClients)
 		return 0;
+
+	// During map change engine deallocates private data of all entities (including players) and sets pvPrivData to NULL
+	// Hitting this state (pvPrivData == NULL) means that there is a map change in progress and player is not yet active
+	if (FNullEnt(INDEXENT(index)))
+		return 0;
 	
 	CPlayer* pPlayer = GET_PLAYER_POINTER_I(index);
 	

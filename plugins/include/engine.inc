@@ -114,6 +114,9 @@ native entity_set_model(iIndex, const szModel[]);
 /* Remove an entity from the world. */
 native remove_entity(iIndex);
 
+/* Marks entity with FL_KILLME flag. This entity will be destroyed be the engine at the end of frame computation */
+native remove_entity_soft(iIndex);
+
 /* Return current number of entities in the map */
 native entity_count();
 

@@ -88,6 +88,95 @@ static cell AMX_NATIVE_CALL lookup_sequence(AMX* amx, cell* params)
 	return -1;
 
 };
+
+// lookup_activity(entid, activity_id, &Float:framerate = 0.0, &bool:loops = false, &Float:groundspeed = 0.0);
+static cell AMX_NATIVE_CALL lookup_activity(AMX* amx, cell* params)
+{
+	int index = params[1];
+
+	CHECK_ENTITY(index);
+
+	edict_t* ent = INDEXENT(index);
+
+	studiohdr_t* pstudiohdr = static_cast<studiohdr_t*>(GET_MODEL_PTR(ent));
+
+	if (pstudiohdr == NULL)
+	{
+		MF_LogError(amx, AMX_ERR_NATIVE, "Could not retrieve the model pointer from the entity provided.");
+		return 0;
+	}
+
+	mstudioseqdesc_t* pseqdesc;
+
+	pseqdesc = reinterpret_cast<mstudioseqdesc_t*>(
+		reinterpret_cast<char*>(pstudiohdr)+pstudiohdr->seqindex);
+
+	int activity_id = params[2];
+
+	for (int i = 0; i < pstudiohdr->numseq; i++)
+	{
+		if (pseqdesc[i].activity == activity_id)
+		{
+			REAL* FrameRate = reinterpret_cast<REAL*>(MF_GetAmxAddr(amx, params[3]));
+			cell* Loops = MF_GetAmxAddr(amx, params[4]);
+			REAL* GroundSpeed = reinterpret_cast<REAL*>(MF_GetAmxAddr(amx, params[5]));
+
+			// Taken from HLSDK: animation & animating.cpp
+			pseqdesc = &pseqdesc[i];
+			*FrameRate = 256 * pseqdesc->fps / (pseqdesc->numframes - 1);
+
+			*GroundSpeed = sqrt(pseqdesc->linearmovement[0] * pseqdesc->linearmovement[0] + pseqdesc->linearmovement[1] * pseqdesc->linearmovement[1] + pseqdesc->linearmovement[2] * pseqdesc->linearmovement[2]);
+			*GroundSpeed = *GroundSpeed * pseqdesc->fps / (pseqdesc->numframes - 1);
+
+			*Loops = pseqdesc->flags & STUDIO_LOOPING;
+			return i;
+		}
+	}
+
+	return -1;
+};
+
+// lookup_sequence_by_id(entid, sequence_id, &Float:framerate = 0.0, &bool:loops = false, &Float:groundspeed = 0.0);
+static cell AMX_NATIVE_CALL lookup_sequence_by_id(AMX* amx, cell* params)
+{
+	int index = params[1];
+
+	CHECK_ENTITY(index);
+
+	edict_t* ent = INDEXENT(index);
+
+	studiohdr_t* pstudiohdr = static_cast<studiohdr_t*>(GET_MODEL_PTR(ent));
+
+	if (pstudiohdr == NULL)
+	{
+		MF_LogError(amx, AMX_ERR_NATIVE, "Could not retrieve the model pointer from the entity (%d %p) provided.", index, ent);
+		return 0;
+	}
+
+	mstudioseqdesc_t* pseqdesc;
+
+	pseqdesc = reinterpret_cast<mstudioseqdesc_t*>(
+		reinterpret_cast<char*>(pstudiohdr)+pstudiohdr->seqindex);
+
+	int sequence_id = params[2];
+	if (sequence_id < 0 || sequence_id >= pstudiohdr->numseq)
+		return -1;
+
+	REAL* FrameRate = reinterpret_cast<REAL*>(MF_GetAmxAddr(amx, params[3]));
+	cell* Loops = MF_GetAmxAddr(amx, params[4]);
+	REAL* GroundSpeed = reinterpret_cast<REAL*>(MF_GetAmxAddr(amx, params[5]));
+
+	// Taken from HLSDK: animation & animating.cpp
+	pseqdesc = &pseqdesc[sequence_id];
+	*FrameRate = 256 * pseqdesc->fps / (pseqdesc->numframes - 1);
+
+	*GroundSpeed = sqrt(pseqdesc->linearmovement[0] * pseqdesc->linearmovement[0] + pseqdesc->linearmovement[1] * pseqdesc->linearmovement[1] + pseqdesc->linearmovement[2] * pseqdesc->linearmovement[2]);
+	*GroundSpeed = *GroundSpeed * pseqdesc->fps / (pseqdesc->numframes - 1);
+
+	*Loops = pseqdesc->flags & STUDIO_LOOPING;
+	return sequence_id;
+};
+
 // Float:set_controller(entid, controllerid, Float:value);
 static cell AMX_NATIVE_CALL set_controller(AMX* amx, cell* params)
 {
@@ -334,6 +423,8 @@ static cell AMX_NATIVE_CALL SetModelBoundingBox(AMX *amx, cell *params)
 AMX_NATIVE_INFO misc_natives[] = {
 	{ "copy_infokey_buffer",		copy_infokey_buffer },
 	{ "lookup_sequence",			lookup_sequence },
+	{ "lookup_activity",			lookup_activity },
+	{ "lookup_sequence_by_id",		lookup_sequence_by_id },
 	{ "set_controller",				set_controller },
 	{ "GetModelCollisionBox",		GetModelCollisionBox },
 	{ "SetModelCollisionBox",		SetModelCollisionBox },
