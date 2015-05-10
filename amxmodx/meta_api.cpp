@@ -126,6 +126,7 @@ cvar_t* mp_timelimit = NULL;
 // main forwards
 int FF_ClientCommand = -1;
 int FF_ClientConnect = -1;
+int FF_ClientPreDisconnect = -1;
 int FF_ClientDisconnect = -1;
 int FF_ClientInfoChanged = -1;
 int FF_ClientPutInServer = -1;
@@ -488,7 +489,8 @@ int	C_Spawn(edict_t *pent)
 	// Register forwards
 	FF_PluginInit = registerForward("plugin_init", ET_IGNORE, FP_DONE);
 	FF_ClientCommand = registerForward("client_command", ET_STOP, FP_CELL, FP_DONE);
-	FF_ClientConnect = registerForward("client_connect", ET_IGNORE, FP_CELL, FP_DONE);
+	FF_ClientConnect = registerForward("client_connect", ET_IGNORE, FP_CELL, FP_STRING, FP_STRING, FP_STRING, FP_DONE);
+	FF_ClientPreDisconnect = registerForward("client_disconnect_pre", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientDisconnect = registerForward("client_disconnect", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientInfoChanged = registerForward("client_infochanged", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientPutInServer = registerForward("client_putinserver", ET_IGNORE, FP_CELL, FP_DONE);
@@ -652,7 +654,10 @@ void C_ServerDeactivate()
 	{
 		CPlayer	*pPlayer = GET_PLAYER_POINTER_I(i);
 		if (pPlayer->initialized)
+		{
+			executeForwards(FF_ClientPreDisconnect, static_cast<cell>(pPlayer->index));
 			executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
+		}
 
 		if (pPlayer->ingame)
 		{
@@ -784,7 +789,18 @@ BOOL C_ClientConnect_Post(edict_t *pEntity, const char *pszName, const char *psz
 	if (!pPlayer->IsBot())
 	{
 		bool a = pPlayer->Connect(pszName, pszAddress);
-		executeForwards(FF_ClientConnect, static_cast<cell>(pPlayer->index));
+		int index = static_cast<cell>(pPlayer->index);
+
+		const char *steamid = GETPLAYERAUTHID(pEntity);
+		
+		char szIp[32];
+		strcpy(szIp, pszAddress);
+
+		char *pPortSeparator = strstr(szIp, ":");
+		if (pPortSeparator != NULL)
+			*pPortSeparator = 0;
+
+		executeForwards(FF_ClientConnect, index, szIp, steamid, pszName);
 		
 		if (a)
 		{
@@ -815,7 +831,10 @@ void C_ClientDisconnect(edict_t *pEntity)
 {
 	CPlayer *pPlayer = GET_PLAYER_POINTER(pEntity);
 	if (pPlayer->initialized)
+	{
+		executeForwards(FF_ClientPreDisconnect, static_cast<cell>(pPlayer->index));
 		executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
+	}
 
 	if (pPlayer->ingame)
 	{
@@ -852,7 +871,7 @@ void C_ClientUserInfoChanged_Post(edict_t *pEntity, char *infobuffer)
 	} else if (pPlayer->IsBot()) {
 		pPlayer->Connect(name, "127.0.0.1"/*CVAR_GET_STRING("net_address")*/);
 
-		executeForwards(FF_ClientConnect, static_cast<cell>(pPlayer->index));
+		executeForwards(FF_ClientConnect, static_cast<cell>(pPlayer->index), "", "", "");
 
 		pPlayer->Authorize();
 		if (g_auth_funcs.size())
@@ -879,9 +898,14 @@ void C_ClientUserInfoChanged_Post(edict_t *pEntity, char *infobuffer)
 
 void C_ClientCommand(edict_t *pEntity)
 {
+	META_RES result = MRES_IGNORED;
+
+	//dont handle commands from inactive players
+	if (!pEntity->pvPrivateData)
+		RETURN_META(result);
+
 	CPlayer *pPlayer = GET_PLAYER_POINTER(pEntity);
 	
-	META_RES result = MRES_IGNORED;
 	cell ret = 0;
 	
 	const char* cmd = CMD_ARGV(0);

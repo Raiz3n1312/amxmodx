@@ -548,6 +548,31 @@ native copy_infokey_buffer(infoBuffer, out[], maxlen);
 native lookup_sequence(entity, const name[], &Float:framerate = 0.0, &bool:loops = false, &Float:groundspeed = 0.0);
 
 /**
+ * Looks up the sequence for the entity by its activity id.
+ *
+ * @param entity		The entity id to lookup.
+ * @param name			The sequence activity id
+ * @param framerate		The framerate of the sequence, if found.
+ * @param loops			Whether or not the sequence loops.
+ * @param groundspeed	The groundspeed setting of the sequence.
+ * @return				-1 on failed lookup, the sequence number on successful lookup.
+ */
+native lookup_activity(entid, activity_id, &Float:framerate = 0.0, &bool:loops = false, &Float:groundspeed = 0.0);
+
+/**
+ * Looks up the sequence for the entity by its id.
+ *
+ * @param entity		The entity id to lookup.
+ * @param name			The sequence id
+ * @param framerate		The framerate of the sequence, if found.
+ * @param loops			Whether or not the sequence loops.
+ * @param groundspeed	The groundspeed setting of the sequence.
+ * @return				-1 on failed lookup, the sequence number on successful lookup.
+ */
+native lookup_sequence_by_id(entid, sequence_id, &Float:framerate = 0.0, &bool:loops = false, &Float:groundspeed = 0.0);
+
+
+/**
  * Sets a bone controller with the specified value.
  *
  * @param entity		The entity id to set the value on.

@@ -136,11 +136,14 @@ forward client_infochanged(id);
  * @note This forward is called too early to do anything that directly affects
  *       the client.
  *
- * @param id    Client index
+ * @param id		Client index
+ * @param ip		Client IP address
+ * @param steamId   Client Steam ID
+ * @param name		Client name
  *
  * @noreturn
  */
-forward client_connect(id);
+forward client_connect(id, const ip[], const steamId[], const name[]);
 
 /**
  * Called when the client gets a valid SteamID.
@@ -165,6 +168,17 @@ forward client_authorized(id);
  * @noreturn
  */
 forward client_disconnect(id);
+
+/**
+ * Called when a client is disconnecting from the server, before client_disconnect forward is executed.
+ *
+ * @note Sometimes it may be useful to execute code related to player deinitialization before any other plugins do that
+ *
+ * @param id    Client index
+ *
+ * @noreturn
+ */
+forward client_disconnect_pre(id);
 
 /**
  * Called when a client attempts to execute a command.

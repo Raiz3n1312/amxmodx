@@ -130,6 +130,32 @@ static cell AMX_NATIVE_CALL remove_entity(AMX *amx, cell *params)
 	return 1;
 }
 
+static cell AMX_NATIVE_CALL remove_entity_soft(AMX *amx, cell *params)
+{
+	int id = params[1];
+	if (id == 0) {
+		MF_LogError(amx, AMX_ERR_NATIVE, "Tried to remove worldspawn");
+		return 0;
+	}
+
+	edict_t *pEnt = INDEXENT2(id);
+
+	if (FNullEnt(pEnt))
+		return 0;
+
+	if ((pEnt->v.flags & FL_CLIENT) == FL_CLIENT) {
+		MF_LogError(amx, AMX_ERR_NATIVE, "Tried to remove player entity (%d)", id);
+		return 0;
+	}
+
+	pEnt->v.flags |= FL_KILLME;
+	pEnt->v.targetname = 0;
+	pEnt->v.movetype = MOVETYPE_NONE;
+	pEnt->v.solid = SOLID_NOT;
+
+	return 1;
+}
+
 static cell AMX_NATIVE_CALL entity_count(AMX *amx, cell *params)
 {
 	return NUMBER_OF_ENTITIES();
@@ -1588,6 +1614,8 @@ AMX_NATIVE_INFO ent_NewNatives[] =
 AMX_NATIVE_INFO ent_Natives[] = {
 	{"create_entity",		create_entity},
 	{"remove_entity",		remove_entity},
+	{"remove_entity_soft",	remove_entity_soft},
+	
 	{"entity_count",		entity_count},
 	{"is_valid_ent",		is_valid_ent},
 
