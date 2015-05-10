@@ -22,10 +22,11 @@
 #include "ham_utils.h"
 #include "NEW_Util.h"
 
-CStack< Data * > ReturnStack;
-CStack< Data * > OrigReturnStack;
-CStack< ke::Vector< Data * > * > ParamStack;
-CStack< int * > ReturnStatus;
+CStaticStack<Data*, HAM_MAX_CALL_DEPTH> ReturnStack;
+CStaticStack<Data*, HAM_MAX_CALL_DEPTH> OrigReturnStack;
+CStaticStack<CParamsStorage*, HAM_MAX_CALL_DEPTH> ParamStack;
+CStaticStack<int*, HAM_MAX_CALL_DEPTH> ReturnStatus;
+
 #define CHECK_STACK(__STACK__)								\
 	if (  ( __STACK__ ).size() <= 0)						\
 	{																	\
@@ -180,7 +181,7 @@ static cell AMX_NATIVE_CALL SetHamReturnString(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL SetHamParamInteger(AMX *amx, cell *params)
 {
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1]) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -200,7 +201,7 @@ static cell AMX_NATIVE_CALL SetHamParamTraceResult(AMX *amx, cell *params)
 		return 0;
 	}
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1]) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -214,7 +215,7 @@ static cell AMX_NATIVE_CALL SetHamParamTraceResult(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL SetHamParamFloat(AMX *amx, cell *params)
 {
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1] || params[1] < 1) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -228,7 +229,7 @@ static cell AMX_NATIVE_CALL SetHamParamFloat(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL SetHamParamVector(AMX *amx, cell *params)
 {
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1]) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -242,7 +243,7 @@ static cell AMX_NATIVE_CALL SetHamParamVector(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL SetHamParamEntity(AMX *amx, cell *params)
 {
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1]) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -256,7 +257,7 @@ static cell AMX_NATIVE_CALL SetHamParamEntity(AMX *amx, cell *params)
 static cell AMX_NATIVE_CALL SetHamParamString(AMX *amx, cell *params)
 {
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec=ParamStack.front(); 
+	CParamsStorage *vec = ParamStack.front();
 	if (vec->length() < (unsigned)params[1]) 
 	{ 
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid parameter number, got %d, expected %d", params[1], vec->length()); 
@@ -277,7 +278,7 @@ static cell AMX_NATIVE_CALL SetHamParamItemInfo(AMX *amx, cell *params)
 	}
 
 	CHECK_STACK(ParamStack);
-	ke::Vector<Data *> *vec = ParamStack.front();
+	CParamsStorage *vec = ParamStack.front();
 
 	if (vec->length() < (unsigned)params[1])
 	{

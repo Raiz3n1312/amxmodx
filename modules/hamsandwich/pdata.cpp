@@ -110,7 +110,9 @@ static cell AMX_NATIVE_CALL get_pdata_cbase(AMX *amx, cell *params)
 		MF_LogError(amx, AMX_ERR_NATIVE, "Invalid offset provided. (got: %d)", iOffset);
 		return 0;
 	}
-	void *ptr=*((void **)((int *)INDEXENT_NEW(index)->pvPrivateData + iOffset));
+
+	edict_t* ed = INDEXENT_NEW(index);
+	void *ptr = *((void **)((int *)ed->pvPrivateData + iOffset));
 
 	return PrivateToIndex(ptr);
 }

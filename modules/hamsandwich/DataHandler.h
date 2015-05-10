@@ -19,6 +19,10 @@
 #include <am-string.h>
 #include <sh_stack.h>
 
+#include "CStaticVector.h"
+#include "sh_static_stack.h"
+
+
 enum
 {
 	RET_VOID,
@@ -86,7 +90,7 @@ private:
 	};
 
 public:
-	Data() : m_data(NULL), m_index(NULL), m_type(RET_VOID)
+	Data()
 	{ /* nothing */	};
 
 	Data(int type, void *ptr) : m_data(ptr), m_index(NULL), m_type(type)
@@ -97,6 +101,20 @@ public:
 
 	~Data()
 	{ /* nothing */	};
+
+	void Init(int type, void *ptr)
+	{
+		m_data = ptr;
+		m_index = NULL;
+		m_type = type;
+	}
+
+	void Init(int type, void *ptr, int *cptr)
+	{
+		m_data = ptr;
+		m_index = NULL;
+		m_type = type;
+	}
 
 	int GetType()
 	{
@@ -367,8 +385,14 @@ public:
 	}
 };
 
-extern CStack< Data * > ReturnStack;
-extern CStack< Data * > OrigReturnStack;
-extern CStack< ke::Vector< Data * > * > ParamStack;
-extern CStack< int * > ReturnStatus;
+#define HAM_MAX_FORWARD_PARAMS 16
+#define HAM_MAX_CALL_DEPTH 64
+
+typedef CStaticVector<Data*, HAM_MAX_FORWARD_PARAMS> CParamsStorage;
+
+extern CStaticStack<Data*, HAM_MAX_CALL_DEPTH> ReturnStack;
+extern CStaticStack<Data*, HAM_MAX_CALL_DEPTH> OrigReturnStack;
+extern CStaticStack<CParamsStorage*, HAM_MAX_CALL_DEPTH> ParamStack;
+extern CStaticStack<int*, HAM_MAX_CALL_DEPTH> ReturnStatus;
+
 #endif
