@@ -756,9 +756,6 @@ native set_ent_rendering(index, fx = kRenderFxNone, r = 0, g = 0, b = 0, render 
 /* Marks entity with FL_KILLME flag. This entity will be destroyed be the engine at the end of frame computation */
 native remove_entity_soft(iIndex);
 
-/* Return current number of entities in the map */
-native entity_count();
-
 /**
  * Calls the DispatchThink() game DLL function on an entity, triggering it to
  * think if applicable.
